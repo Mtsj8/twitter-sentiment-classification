@@ -1,3 +1,7 @@
+from LeIA.leia import SentimentIntensityAnalyzer
+
+s = SentimentIntensityAnalyzer()
+
 from TwitterAPI import TwitterOAuth
 from TwitterAPI import TwitterAPI
 from TwitterAPI import TwitterConnectionError
@@ -34,25 +38,29 @@ API =  TwitterAPI(
         )
 
 def parse_origin_tweet(origin_tweet_item, origin_tweets = pd.DataFrame()):
-        origin_tweet = {
-            'id':         origin_tweet_item['id'],
-            'author_id':  origin_tweet_item['id_hydrate']['author_id'],
-            'content':    origin_tweet_item['id_hydrate']['text'],
-            'created_at': origin_tweet_item['id_hydrate']['created_at'],
-            'replies':    origin_tweet_item['id_hydrate']['public_metrics']['reply_count'],
-            'likes':      origin_tweet_item['id_hydrate']['public_metrics']['like_count'],
-            'quotes':     origin_tweet_item['id_hydrate']['public_metrics']['quote_count']
-        }
+    sentiment_score = s.polarity_scores(origin_tweet_item['id_hydrate']['text'])['compound']
 
-        origin_tweets = origin_tweets.append(origin_tweet, ignore_index=True)
+    origin_tweet = {
+        'id':              origin_tweet_item['id'],
+        'author_id':       origin_tweet_item['id_hydrate']['author_id'],
+        'content':         origin_tweet_item['id_hydrate']['text'],
+        'created_at':      origin_tweet_item['id_hydrate']['created_at'],
+        'replies':         origin_tweet_item['id_hydrate']['public_metrics']['reply_count'],
+        'likes':           origin_tweet_item['id_hydrate']['public_metrics']['like_count'],
+        'quotes':          origin_tweet_item['id_hydrate']['public_metrics']['quote_count'],
+        'sentiment_score': sentiment_score if sentiment_score <= 1.0 and sentiment_score >= -1.0 else 0.0
+    }
 
-        return origin_tweets
+    origin_tweets = origin_tweets.append(origin_tweet, ignore_index=True)
+
+    return origin_tweets
 
 def parse_tweets(results):
     tweets = pd.DataFrame()
     origin_tweets = pd.DataFrame()
 
     for item in results:
+        sentiment_score = s.polarity_scores(item['text'])['compound']
         tweet = {
             'id':              item['id'],
             'author_id':       item['author_id'],
@@ -64,6 +72,7 @@ def parse_tweets(results):
             'likes':           item['public_metrics']['like_count'],
             'quotes':          item['public_metrics']['quote_count'],
             'followers_count': item['author_id_hydrate']['public_metrics']['followers_count'],
+            'sentiment_score': sentiment_score if sentiment_score <= 1.0 and sentiment_score >= -1.0 else 0.0
         }
 
         if 'location' in item['author_id_hydrate'].keys():
