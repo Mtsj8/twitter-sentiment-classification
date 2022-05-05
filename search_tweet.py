@@ -13,20 +13,11 @@ import pandas as pd
 from os import path
 import warnings
 
+import params as PARAMS
+
 warnings.filterwarnings("ignore")
 
-EXPANSIONS = ("author_id,referenced_tweets.id,"
-              "referenced_tweets.id.author_id,"
-              "in_reply_to_user_id,attachments.media_keys")
-
-TWEET_FIELDS = 'created_at,author_id,public_metrics'
-
-USER_FIELDS = 'location,verified,public_metrics'
-
-CURRENT_PATH = path.dirname(__file__)  
-TWITTER_CREDENTIALS = path.join(CURRENT_PATH, './credentials.txt')
-
-AUTH = TwitterOAuth.read_file(TWITTER_CREDENTIALS)
+AUTH = TwitterOAuth.read_file(PARAMS.TWITTER_CREDENTIALS)
 
 API =  TwitterAPI(
             AUTH.consumer_key,
@@ -42,6 +33,14 @@ def parse_tweets(results):
 
     for item in results:
         sentiment_score = s.polarity_scores(item['text'])['compound']
+
+        if sentiment_score > 0:
+            sentiment = 'positive'
+        elif sentiment_score < 0:
+            sentiment = 'negative'
+        else:
+            sentiment = 'neutral'
+
         tweet = {
             'id':              item['id'],
             'author_id':       item['author_id'],
@@ -53,7 +52,8 @@ def parse_tweets(results):
             'likes':           item['public_metrics']['like_count'],
             'quotes':          item['public_metrics']['quote_count'],
             'followers_count': item['author_id_hydrate']['public_metrics']['followers_count'],
-            'sentiment_score': sentiment_score if sentiment_score <= 1.0 and sentiment_score >= -1.0 else 0.0
+            'sentiment_score': sentiment_score if sentiment_score <= 1.0 and sentiment_score >= -1.0 else 0.0,
+            'sentiment':       sentiment
         }
 
         if 'location' in item['author_id_hydrate'].keys():
@@ -68,37 +68,38 @@ def parse_tweets(results):
     return {'tweets': tweets}
 
 
-query = "\"Uber\" lang:pt"
+# query = "\"Uber\" lang:pt"
 since_id = None
 
-try:
-    params = {
-        'query': {query}, 
-        'expansions': EXPANSIONS,
-        'tweet.fields': TWEET_FIELDS,
-        'user.fields': USER_FIELDS,
-        'max_results': 100
-    }
-    
-    if since_id is not None:
-        params['since_id'] = since_id
+def search(query):
+    try:
+        params = {
+            'query': {query}, 
+            'expansions': PARAMS.EXPANSIONS,
+            'tweet.fields': PARAMS.TWEET_FIELDS,
+            'user.fields': PARAMS.USER_FIELDS,
+            'max_results': 100
+        }
+        
+        if since_id is not None:
+            params['since_id'] = since_id
 
-    results = API.request('tweets/search/recent', 
-        params,
-        hydrate_type = HydrateType.APPEND
-    )
+        results = API.request('tweets/search/recent', 
+            params,
+            hydrate_type = HydrateType.APPEND
+        )
 
-    dfs_tweets = parse_tweets(results)
-    
-    dfs_tweets['tweets'].to_csv('tweets.csv', index = False, decimal='.')
+        dfs_tweets = parse_tweets(results)
+        
+        dfs_tweets['tweets'].to_csv('tweets.csv', index = False, decimal='.')
 
-except TwitterRequestError as e:
-    print(e.status_code)
-    for msg in iter(e):
-        print('Mistake', msg)
+    except TwitterRequestError as e:
+        print(e.status_code)
+        for msg in iter(e):
+            print('Mistake', msg)
 
-except TwitterConnectionError as e:
-    print('Connection Error', e)
+    except TwitterConnectionError as e:
+        print('Connection Error', e)
 
-except Exception as e:
-    print('Exception', e)
+    except Exception as e:
+        print('Exception', e)
