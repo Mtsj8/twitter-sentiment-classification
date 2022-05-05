@@ -56,6 +56,14 @@ python main.py Uber pt
         </sub>
       </a>
     </td>
+    <td align="center">
+      <a href="#">
+        <img src="https://avatars.githubusercontent.com/u/80799164?v=4" width="100px;" alt="Foto do Alexandre Stanev"/><br>
+        <sub>
+          <b>Alexandre Stanev</b>
+        </sub>
+      </a>
+    </td>
     </td>
   </tr>
 </table>
