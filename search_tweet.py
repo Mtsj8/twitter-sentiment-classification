@@ -10,7 +10,7 @@ from TwitterAPI import HydrateType
 
 import pandas as pd
 
-from os import path
+import os
 import warnings
 
 import params as PARAMS
@@ -71,7 +71,7 @@ def parse_tweets(results):
 # query = "\"Uber\" lang:pt"
 since_id = None
 
-def search(query):
+def search(query, filename = 'tweets'):
     try:
         params = {
             'query': {query}, 
@@ -84,14 +84,24 @@ def search(query):
         if since_id is not None:
             params['since_id'] = since_id
 
-        results = API.request('tweets/search/recent', 
+        results = API.request(
+            'tweets/search/recent', 
             params,
             hydrate_type = HydrateType.APPEND
         )
 
-        dfs_tweets = parse_tweets(results)
-        
-        dfs_tweets['tweets'].to_csv('tweets.csv', index = False, decimal = ',', sep = ';')
+        df_tweets = parse_tweets(results)['tweets']
+
+        if (os.path.exists('tweets/%s.csv' % (filename))):
+            old_df_tweets = pd.read_csv('tweets/%s.csv' % (filename), sep = ';', decimal = ',')
+            os.remove('tweets/%s.csv' % (filename))
+
+            df_tweets = pd.concat([old_df_tweets, df_tweets], ignore_index = True)
+
+            df_tweets['id'] = df_tweets['id'].astype(str)
+            df_tweets = df_tweets.drop_duplicates(subset=['id'], keep='last').reset_index(drop = True)
+    
+        df_tweets.to_csv('tweets/%s.csv' % (filename), index = False, decimal = ',', sep = ';')
 
     except TwitterRequestError as e:
         print(e.status_code)
