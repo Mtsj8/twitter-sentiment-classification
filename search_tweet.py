@@ -91,7 +91,7 @@ def search(query):
 
         dfs_tweets = parse_tweets(results)
         
-        dfs_tweets['tweets'].to_csv('tweets.csv', index = False, decimal='.')
+        dfs_tweets['tweets'].to_csv('tweets.csv', index = False, decimal = ',', sep = ';')
 
     except TwitterRequestError as e:
         print(e.status_code)
