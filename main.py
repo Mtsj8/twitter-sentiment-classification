@@ -6,4 +6,4 @@ if __name__ == "__main__":
     lang = sys.argv[2]
 
     full_query = f"\"{query}\" lang:{lang}"
-    search_tweet.search(full_query)
+    search_tweet.search(full_query, 'tweets_%s' % (query))
