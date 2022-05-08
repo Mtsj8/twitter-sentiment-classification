@@ -6,7 +6,7 @@ Esta aplicação foi desenvolvida como projeto para a matéria de Engenharia de 
 
 Antes de começar, verifique se você atendeu aos seguintes requisitos:
 
-* Você instalou a versão do `Python==3.9.7` (Aplicação não testada em outras versões)
+* Você instalou a versão do `Python==3.8.8` (Aplicação não testada em outras versões)
 * Você tem uma máquina `<Windows / Linux / Mac>`
 * Voce possui instalado o `TwitterAPI==2.7.12` em seu ambiente Python.
 * Possui credenciais para utilização da API de Desenvolvedor do Twitter (<a href="https://developer.twitter.com/en/docs/apps/overview">Mais detalhes aqui</a>)
