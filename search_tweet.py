@@ -17,16 +17,18 @@ import params as PARAMS
 
 warnings.filterwarnings("ignore")
 
-AUTH = TwitterOAuth.read_file(PARAMS.TWITTER_CREDENTIALS)
 
-API =  TwitterAPI(
-            AUTH.consumer_key,
-            AUTH.consumer_secret,
-            AUTH.access_token_key,
-            AUTH.access_token_secret,
+def twitter_api_connection(auth):
+    API =  TwitterAPI(
+            auth.consumer_key,
+            auth.consumer_secret,
+            auth.access_token_key,
+            auth.access_token_secret,
             auth_type='oAuth2',
             api_version='2'
         )
+    return API
+
 
 def parse_tweets(results):
     tweets = pd.DataFrame()
@@ -46,18 +48,18 @@ def parse_tweets(results):
             'author_id':       item['author_id'],
             'content':         item['text'],
             'created_at':      item['created_at'],
-            'verified':        item['author_id_hydrate']['verified'],
+            'verified':        item['author_id_hydrate']['verified'] if 'author_id_hydrate' in item else None,
             'retweets':        item['public_metrics']['retweet_count'],
             'replies':         item['public_metrics']['reply_count'],
             'likes':           item['public_metrics']['like_count'],
             'quotes':          item['public_metrics']['quote_count'],
-            'followers_count': item['author_id_hydrate']['public_metrics']['followers_count'],
+            'followers_count': item['author_id_hydrate']['public_metrics']['followers_count'] if 'author_id_hydrate' in item else None,
             'sentiment_score': sentiment_score if sentiment_score <= 1.0 and sentiment_score >= -1.0 else 0.0,
             'sentiment':       sentiment
         }
 
-        if 'location' in item['author_id_hydrate'].keys():
-            tweet['location'] = item['author_id_hydrate']['location']
+        if 'author_id_hydrate' in item and 'location' in item['author_id_hydrate'].keys():
+            tweet['location'] = item['author_id_hydrate']['location'] if 'author_id_hydrate' in item else None
 
         if 'referenced_tweets' in item.keys():
             tweet['origin_tweet_id'] = item['referenced_tweets'][0]['id']
@@ -68,8 +70,24 @@ def parse_tweets(results):
     return {'tweets': tweets}
 
 
+def create_csv(df_tweets, filename):
+    if (os.path.exists('tweets/%s.csv' % (filename))):
+        old_df_tweets = pd.read_csv('tweets/%s.csv' % (filename), sep = ';', decimal = ',')
+        os.remove('tweets/%s.csv' % (filename))
+
+        df_tweets = pd.concat([old_df_tweets, df_tweets], ignore_index = True)
+
+        df_tweets['id'] = df_tweets['id'].astype(str)
+        df_tweets = df_tweets.drop_duplicates(subset=['id'], keep='last').reset_index(drop = True)
+    
+    df_tweets.to_csv('tweets/%s.csv' % (filename), index = False, decimal = ',', sep = ';')
+
+    return df_tweets
+
+
 # query = "\"Uber\" lang:pt"
 since_id = None
+
 
 def search(query, filename = 'tweets'):
     try:
@@ -84,7 +102,9 @@ def search(query, filename = 'tweets'):
         if since_id is not None:
             params['since_id'] = since_id
 
-        results = API.request(
+        AUTH = TwitterOAuth.read_file(PARAMS.TWITTER_CREDENTIALS)
+
+        results = twitter_api_connection(AUTH).request(
             'tweets/search/recent', 
             params,
             hydrate_type = HydrateType.APPEND
@@ -92,16 +112,9 @@ def search(query, filename = 'tweets'):
 
         df_tweets = parse_tweets(results)['tweets']
 
-        if (os.path.exists('tweets/%s.csv' % (filename))):
-            old_df_tweets = pd.read_csv('tweets/%s.csv' % (filename), sep = ';', decimal = ',')
-            os.remove('tweets/%s.csv' % (filename))
+        df_tweets = create_csv(df_tweets, filename)
 
-            df_tweets = pd.concat([old_df_tweets, df_tweets], ignore_index = True)
-
-            df_tweets['id'] = df_tweets['id'].astype(str)
-            df_tweets = df_tweets.drop_duplicates(subset=['id'], keep='last').reset_index(drop = True)
-    
-        df_tweets.to_csv('tweets/%s.csv' % (filename), index = False, decimal = ',', sep = ';')
+        return df_tweets
 
     except TwitterRequestError as e:
         print(e.status_code)
